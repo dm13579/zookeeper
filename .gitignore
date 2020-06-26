@@ -26,3 +26,10 @@ hs_err_pid*
 
 .idea/
 zookeeper-demo/zookeeper-demo.iml
+target/
+zookeeper-monitor/.mvn
+zookeeper-monitor/mvnw
+zookeeper-monitor/mvnw.cmd
+zookeeper-agent/src/main/resources/
+zookeeper-agent/src/test/resources/
+zookeeper-agent/zookeeper-agent.iml
