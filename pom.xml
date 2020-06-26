@@ -12,6 +12,7 @@
     <modules>
         <module>zookeeper-demo</module>
         <module>zookeeper-agent</module>
+        <module>zookeeper-job</module>
     </modules>
 
     <dependencies>
