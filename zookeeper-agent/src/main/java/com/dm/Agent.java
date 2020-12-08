@@ -1,5 +1,6 @@
 package com.dm;
 
+import com.dm.constants.ZookeeperConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.I0Itec.zkclient.ZkClient;
 
@@ -9,14 +10,15 @@ import java.lang.management.MemoryUsage;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+/**
+ * java agent 监控程序
+ */
 public class Agent {
 
     private static ZkClient zkClient;
-    private static String server = "122.51.157.42";
     private static String rootPath = "/dm-master";
     private static String servicePath = rootPath + "/service";
     private static String nodePath;
-    private Thread startThread;
 
     private static Agent curInstance = new Agent();
 
@@ -24,36 +26,38 @@ public class Agent {
         return curInstance;
     }
 
-    // javaagent 数据监控
+    /**
+     * java agent 数据监控
+     */
     public static void premain(String args, Instrumentation instrumentation) {
         Agent.getInstance().init();
     }
 
     public void init() {
-        zkClient = new ZkClient(server, 4000, 10000);
-        System.out.println("zk连接成功" + server);
+        zkClient = new ZkClient(ZookeeperConstants.SERVER, ZookeeperConstants.SESSION_TIME_OUT, ZookeeperConstants.CONNECTION_TIME_OUT);
+        System.out.println("zk连接成功" + ZookeeperConstants.SERVER);
 
         buildRoot();
         createServerNode();
 
         // 刷新节点数据
-        startThread = new Thread(()->{
-           while (true){
-               updateServerNode();
-               try {
-                   Thread.sleep(5000);
-               } catch (InterruptedException e) {
-                   e.printStackTrace();
-               }
-           }
-        },"zk_startThread");
+        Thread startThread = new Thread(() -> {
+            while (true) {
+                updateServerNode();
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }, "zk_startThread");
 
         startThread.setDaemon(true);
         startThread.start();
     }
 
     private void updateServerNode() {
-        zkClient.writeData(nodePath,getOsInfo());
+        zkClient.writeData(nodePath, getOsInfo());
     }
 
     private void buildRoot() {
@@ -85,7 +89,7 @@ public class Agent {
     }
 
     private String getLocalIp() {
-        InetAddress addr = null;
+        InetAddress addr;
         try {
             addr = InetAddress.getLocalHost();
         } catch (UnknownHostException e) {

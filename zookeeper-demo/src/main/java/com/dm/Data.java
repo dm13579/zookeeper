@@ -1,5 +1,6 @@
 package com.dm;
 
+import com.dm.constants.ZookeeperConstants;
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Id;
@@ -17,12 +18,9 @@ public class Data {
 
     @Before
     public void init() throws IOException {
-        zooKeeper = new ZooKeeper("122.51.157.42", 50000, new Watcher() {
-            @Override
-            public void process(WatchedEvent event) {
-                System.out.println(event.getPath());
-                System.out.println(event);
-            }
+        zooKeeper = new ZooKeeper(ZookeeperConstants.SERVER, ZookeeperConstants.SESSION_TIME_OUT, event -> {
+            System.out.println(event.getPath());
+            System.out.println(event);
         });
     }
 
@@ -51,11 +49,11 @@ public class Data {
     @Test
     public void getDataByCustomerWatch() throws KeeperException, InterruptedException {
         Stat stat = new Stat();
-        byte[] data = zooKeeper.getData("/temp", new Watcher() {
+        zooKeeper.getData("/temp", new Watcher() {
             @Override
             public void process(WatchedEvent event) {
                 try {
-                    zooKeeper.getData(event.getPath(),this,null);
+                    zooKeeper.getData(event.getPath(), this, null);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -70,13 +68,8 @@ public class Data {
      * 设置
      */
     @Test
-    public void getDataByDataCallback() throws KeeperException, InterruptedException {
-        zooKeeper.getData("/temp", false, new AsyncCallback.DataCallback() {
-            @Override
-            public void processResult(int rc, String path, Object ctx, byte[] data, Stat stat) {
-                System.out.println(stat);
-            }
-        },"");
+    public void getDataByDataCallback() throws InterruptedException {
+        zooKeeper.getData("/temp", false, (rc, path, ctx, data, stat) -> System.out.println(stat), "");
         Thread.sleep(Integer.MAX_VALUE);
     }
 
@@ -86,7 +79,7 @@ public class Data {
     @Test
     public void getChild() throws KeeperException, InterruptedException {
         List<String> children = zooKeeper.getChildren("/temp", false);
-        children.stream().forEach(System.out::println);
+        children.forEach(System.out::println);
     }
 
     /**
@@ -100,13 +93,13 @@ public class Data {
             // 获取子节点
             try {
                 List<String> children1 = zooKeeper.getChildren(event.getPath(), false);
-                children1.stream().forEach(System.out::println);
+                children1.forEach(System.out::println);
             } catch (Exception e) {
                 e.printStackTrace();
             }
 
         });
-        children.stream().forEach(System.out::println);
+        children.forEach(System.out::println);
         Thread.sleep(Integer.MAX_VALUE);
     }
 
@@ -114,10 +107,10 @@ public class Data {
     public void createData() throws KeeperException, InterruptedException {
         List<ACL> list = new ArrayList<>();
         // ZooDefs.Perms
-        int perm = ZooDefs.Perms.ADMIN|ZooDefs.Perms.READ;
-        ACL acl = new ACL(perm,new Id("world","anyone"));
+        int perm = ZooDefs.Perms.ADMIN | ZooDefs.Perms.READ;
+        ACL acl = new ACL(perm, new Id("world", "anyone"));
         list.add(acl);
-        zooKeeper.create("/temp","hello".getBytes(),list,CreateMode.PERSISTENT);
+        zooKeeper.create("/temp", "hello".getBytes(), list, CreateMode.PERSISTENT);
     }
 
 }

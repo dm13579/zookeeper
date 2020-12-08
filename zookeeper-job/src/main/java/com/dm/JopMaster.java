@@ -1,5 +1,6 @@
 package com.dm;
 
+import com.dm.constants.ZookeeperConstants;
 import org.I0Itec.zkclient.ZkClient;
 
 import java.util.Map;
@@ -16,7 +17,7 @@ import java.util.stream.Collectors;
   *     ||        ||  \)     
   *    (_\       (_\
   *@ClassName JopMaster
-  *@Description TODO
+  *@Description 多节点，Master选举，有节点宕机进行master选举  选举，最小节点
   *@Author dm
   *@Date 2020/6/26 13:41
   *@slogan: 我自横刀向天笑，笑完我就去睡觉
@@ -24,10 +25,9 @@ import java.util.stream.Collectors;
   **/
 public class JopMaster {
 
-    private String server = "122.51.157.42:2181";
     private ZkClient zkClient;
-    private static final String rootPath = "/jop-master";
-    private static final String servicePath = rootPath + "/service";
+    private static final String ROOT_PATH = "/jop-master";
+    private static final String SERVICE_PATH = ROOT_PATH + "/service";
     private String nodePath;
     private volatile boolean master = false;
     private static JopMaster jopMaster;
@@ -40,30 +40,30 @@ public class JopMaster {
     }
 
     private JopMaster() {
-        zkClient = new ZkClient(server, 2000, 10000);
+        zkClient = new ZkClient(ZookeeperConstants.SERVER, ZookeeperConstants.SESSION_TIME_OUT, ZookeeperConstants.CONNECTION_TIME_OUT);
         buildRoot();
         createServerNode();
     }
 
     private void buildRoot() {
-        if (!zkClient.exists(rootPath)) {
-            zkClient.createPersistent(rootPath);
+        if (!zkClient.exists(ROOT_PATH)) {
+            zkClient.createPersistent(ROOT_PATH);
         }
     }
 
     private void createServerNode() {
-        nodePath = zkClient.createEphemeralSequential(servicePath, "slave");
+        nodePath = zkClient.createEphemeralSequential(SERVICE_PATH, "slave");
         System.out.println("创建service节点:" + nodePath);
         initMaster();
         initListener();
     }
 
     private void initMaster() {
-        boolean existMaster = zkClient.getChildren(rootPath)
+        boolean existMaster = zkClient.getChildren(ROOT_PATH)
                 .stream()
-                .map(p -> rootPath + "/" + p)
+                .map(p -> ROOT_PATH + "/" + p)
                 .map(p -> zkClient.readData(p))
-                .anyMatch(d -> "master".equals(d));
+                .anyMatch("master"::equals);
         if (!existMaster) {
             doElection();
             System.out.println("当前当选master");
@@ -71,18 +71,16 @@ public class JopMaster {
     }
 
     private void initListener() {
-        zkClient.subscribeChildChanges(rootPath, (parentPath, currentChilds) -> {
-            doElection();
-        });
+        zkClient.subscribeChildChanges(ROOT_PATH, (parentPath, currentChilds) -> doElection());
     }
 
     /**
      * 执行选举
      */
     public void doElection() {
-        Map<String, Object> childData = zkClient.getChildren(rootPath)
+        Map<String, Object> childData = zkClient.getChildren(ROOT_PATH)
                 .stream()
-                .map(p -> rootPath + "/" + p)
+                .map(p -> ROOT_PATH + "/" + p)
                 .collect(Collectors.toMap(p -> p, p -> zkClient.readData(p)));
         if (childData.containsValue("master")) {
             return;

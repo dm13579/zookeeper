@@ -1,29 +1,11 @@
 package com.dm.zookeepermonitor.controller;
 
-/**
-  *                  ,;,,;
-  *                ,;;'(    
-  *      __      ,;;' ' \   
-  *   /'  '\'~~'~' \ /'\.)  
-  * ,;(      )    /  |.     
-  *,;' \    /-.,,(   ) \    
-  *     ) /       ) / )|    
-  *     ||        ||  \)     
-  *    (_\       (_\
-  *@ClassName MonitorController
-  *@Description TODO
-  *@Author dm
-  *@Date 2020/6/26 10:45
-  *@slogan: 我自横刀向天笑，笑完我就去睡觉
-  *@Version 1.0
-  **/
-
 import com.dm.OsBean;
+import com.dm.constants.ZookeeperConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.I0Itec.zkclient.IZkDataListener;
 import org.I0Itec.zkclient.ZkClient;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,13 +16,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * ,;,,;
+ * ,;;'(
+ * __      ,;;' ' \
+ * /'  '\'~~'~' \ /'\.)
+ * ,;(      )    /  |.
+ * ,;' \    /-.,,(   ) \
+ * ) /       ) / )|
+ * ||        ||  \)
+ * (_\       (_\
+ *
+ * @ClassName MonitorController
+ * @Description 监控控制器--监控系统运行参数记录在zookeeper
+ * @Author dm
+ * @Date 2020/6/26 10:45
+ * @slogan: 我自横刀向天笑，笑完我就去睡觉
+ * @Version 1.0
+ **/
 @Controller
 public class MonitorController implements InitializingBean {
 
-    @Value("${zk:122.51.157.42:2181}")
-    private String server;
     private ZkClient zkClient;
-    private static final String rootPath = "/dm-master";
+
+    private static final String ROOT_PATH = "/dm-master";
+
     Map<String, OsBean> map = new HashMap<>();
 
     @RequestMapping("/list")
@@ -50,11 +50,10 @@ public class MonitorController implements InitializingBean {
     }
 
     private List<OsBean> getCurrentOsBeans() {
-        List<OsBean> items = zkClient.getChildren(rootPath).stream()
-                .map(p -> rootPath + "/" + p)
+        return zkClient.getChildren(ROOT_PATH).stream()
+                .map(p -> ROOT_PATH + "/" + p)
                 .map(p -> convert(zkClient.readData(p)))
                 .collect(Collectors.toList());
-        return items;
     }
 
     private OsBean convert(String json) {
@@ -67,38 +66,42 @@ public class MonitorController implements InitializingBean {
     }
 
     @Override
-    public void afterPropertiesSet() throws Exception {
-        zkClient = new ZkClient(server, 5000, 10000);
+    public void afterPropertiesSet() {
+        zkClient = new ZkClient(ZookeeperConstants.SERVER, ZookeeperConstants.SESSION_TIME_OUT, ZookeeperConstants.CONNECTION_TIME_OUT);
         initSubscribeListener();
-
     }
 
-    // 初始化订阅事件
+    /**
+     * 初始化订阅事件
+     */
     public void initSubscribeListener() {
         zkClient.unsubscribeAll();
         // 获取所有子节点
-        zkClient.getChildren(rootPath)
+        zkClient.getChildren(ROOT_PATH)
                 .stream()
-                .map(p -> rootPath + "/" + p)// 得出子节点完整路径
+                // 得出子节点完整路径
+                .map(p -> ROOT_PATH + "/" + p)
                 .forEach(p -> {
                     zkClient.subscribeDataChanges(p, new DataChanges());// 数据变更的监听
                 });
         //  监听子节点，的变更 增加，删除
-        zkClient.subscribeChildChanges(rootPath, (parentPath, currentChilds) -> initSubscribeListener());
+        zkClient.subscribeChildChanges(ROOT_PATH, (parentPath, currentChilds) -> initSubscribeListener());
     }
 
-    // 子节点数据变化
+    /**
+     * 子节点数据变化
+     */
     private class DataChanges implements IZkDataListener {
 
         @Override
-        public void handleDataChange(String dataPath, Object data) throws Exception {
+        public void handleDataChange(String dataPath, Object data) {
             OsBean bean = convert((String) data);
             map.put(dataPath, bean);
             doFilter(bean);
         }
 
         @Override
-        public void handleDataDeleted(String dataPath) throws Exception {
+        public void handleDataDeleted(String dataPath) {
             if (map.containsKey(dataPath)) {
                 OsBean bean = map.get(dataPath);
                 System.err.println("服务已下线:" + bean);
@@ -107,7 +110,9 @@ public class MonitorController implements InitializingBean {
         }
     }
 
-    // 警告过滤
+    /**
+     * 警告过滤
+     */
     private void doFilter(OsBean bean) {
         // cpu 超过10% 报警
         if (bean.getCpu() > 10) {
