@@ -24,10 +24,11 @@ public class ZookeeperConstants {
      */
     public final static String SERVER = "*:2181";
 
+    public final static String CLUSTER_SERVER = "*:2181,*:2182,*:2183";
     /**
      * zk session 超时时间
      */
-    public final static Integer SESSION_TIME_OUT = 5000;
+    public final static Integer SESSION_TIME_OUT = 50000;
 
     /**
      * zk session 连接时间
